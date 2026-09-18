@@ -69,6 +69,16 @@ public class NettingRunController {
         return nettingService.getPositions(id).stream().map(PositionResponse::from).collect(Collectors.toList());
     }
 
+    @PostMapping("/{id}/retry")
+    public ExecuteResponse retry(@PathVariable("id") String id) {
+        AuthContext.requireOperator();
+        NettingApplicationService.NettingRunResult result = nettingService.retry(id);
+        return new ExecuteResponse(
+                RunResponse.from(result.run()),
+                result.positions().stream().map(PositionResponse::from).collect(Collectors.toList()),
+                sumNet(result.positions()));
+    }
+
     @PostMapping("/{id}/settle")
     public RunResponse settle(@PathVariable("id") String id) {
         AuthContext.requireOperator();

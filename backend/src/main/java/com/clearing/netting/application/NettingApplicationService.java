@@ -117,6 +117,19 @@ public class NettingApplicationService {
         }
     }
 
+    /**
+     * Retry a FAILED run: re-execute netting for the same settleDate/currency.
+     * Always creates a NEW run (batch); the failed run is kept as an audit record.
+     */
+    @Transactional
+    public NettingRunResult retry(String runId) {
+        NettingRun run = getRun(runId);
+        if (run.getStatus() != NettingRunStatus.FAILED) {
+            throw new DomainException("INVALID_STATE", "only FAILED runs can be retried");
+        }
+        return execute(run.getSettleDate(), run.getCurrency());
+    }
+
     @Transactional
     public NettingRun settle(String runId) {
         NettingRun run = getRun(runId);

@@ -7,6 +7,13 @@
       <el-button @click="$router.back()">返回</el-button>
       <el-button @click="load">刷新</el-button>
       <el-button
+        v-if="detail?.run?.status === 'FAILED'"
+        type="primary"
+        :disabled="!auth.isOperator"
+        :loading="retrying"
+        @click="retry"
+      >重试（生成新批次）</el-button>
+      <el-button
         type="success"
         :disabled="!auth.isOperator || detail?.run?.status !== 'COMPLETED' || alreadySettled"
         :loading="settling"
@@ -57,16 +64,18 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '../api/client'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
 const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const settling = ref(false)
+const retrying = ref(false)
 const detail = ref(null)
 
 const alreadySettled = computed(() =>
@@ -99,5 +108,22 @@ async function settle() {
   }
 }
 
+async function retry() {
+  retrying.value = true
+  try {
+    const { data } = await api.post(`/netting-runs/${route.params.id}/retry`)
+    ElMessage.success(`重试成功，已生成新批次 ${data.run.runId}`)
+    router.push(`/netting-runs/${data.run.runId}`)
+  } catch (e) {
+    // 重试仍失败：后端已记录新的 FAILED 批次，刷新当前页即可看到最新状态
+    await load()
+  } finally {
+    retrying.value = false
+  }
+}
+
 onMounted(load)
+watch(() => route.params.id, (id, prev) => {
+  if (id && id !== prev) load()
+})
 </script>
