@@ -62,6 +62,7 @@ final class PersistenceMapper {
                 e.getCurrency(),
                 e.getStatus(),
                 e.getCreatedAt(),
+                e.getFailureCode(),
                 e.getFailureReason());
     }
 
@@ -72,6 +73,7 @@ final class PersistenceMapper {
         e.setCurrency(r.getCurrency());
         e.setStatus(r.getStatus());
         e.setCreatedAt(r.getCreatedAt());
+        e.setFailureCode(r.getFailureCode());
         e.setFailureReason(r.getFailureReason());
         return e;
     }

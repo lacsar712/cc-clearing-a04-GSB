@@ -12,7 +12,31 @@
         :loading="settling"
         @click="settle"
       >确认 Settle</el-button>
+      <el-tooltip
+        v-if="detail?.run?.status === 'FAILED' && !auth.isOperator"
+        content="仅操作员可重试,只读账户无权限"
+        placement="top"
+      >
+        <span><el-button type="warning" disabled>重试批次</el-button></span>
+      </el-tooltip>
+      <el-button
+        v-else-if="detail?.run?.status === 'FAILED'"
+        type="warning"
+        :loading="retrying"
+        @click="retry"
+      >重试批次</el-button>
     </div>
+
+    <el-alert
+      v-if="detail?.run?.status === 'FAILED'"
+      class="fail-alert"
+      style="margin-top:12px"
+      type="error"
+      :closable="false"
+      show-icon
+      title="该批次执行失败"
+      :description="failureAdvice(detail.run.failureCode)"
+    />
 
     <div class="card-panel" v-loading="loading">
       <template v-if="detail">
@@ -27,6 +51,9 @@
           <el-descriptions-item label="币种">{{ detail.run.currency }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ formatTime(detail.run.createdAt) }}</el-descriptions-item>
           <el-descriptions-item label="ΣnetAmount">{{ detail.sumNetAmount }}</el-descriptions-item>
+          <el-descriptions-item v-if="detail.run.failureReason" label="失败码" :span="2">
+            <el-tag type="danger">{{ detail.run.failureCode || 'NETTING_FAILED' }}</el-tag>
+          </el-descriptions-item>
           <el-descriptions-item v-if="detail.run.failureReason" label="失败原因" :span="2">
             {{ detail.run.failureReason }}
           </el-descriptions-item>
@@ -58,15 +85,18 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../api/client'
 import { useAuthStore } from '../stores/auth'
+import { failureAdvice } from '../utils/failureCodes'
 
 const auth = useAuthStore()
 const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const settling = ref(false)
+const retrying = ref(false)
 const detail = ref(null)
 
 const alreadySettled = computed(() =>
@@ -96,6 +126,26 @@ async function settle() {
     await load()
   } finally {
     settling.value = false
+  }
+}
+
+async function retry() {
+  try {
+    await ElMessageBox.confirm(
+      '将按原参数（交割日/币种）重新执行轧差，成功后会生成新批次。是否继续？',
+      '重试失败批次',
+      { confirmButtonText: '重试', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  retrying.value = true
+  try {
+    const { data } = await api.post(`/netting-runs/${route.params.id}/retry`)
+    ElMessage.success('重试成功，已生成新批次 ' + data.run.runId)
+    router.push(`/netting-runs/${data.run.runId}`)
+  } finally {
+    retrying.value = false
   }
 }
 

@@ -7,6 +7,10 @@
         <el-menu-item index="/members">会员</el-menu-item>
         <el-menu-item index="/obligations">义务</el-menu-item>
         <el-menu-item index="/netting">轧差执行</el-menu-item>
+        <el-menu-item index="/failures">
+          <span>失败诊断</span>
+          <el-badge v-if="failedCount > 0" :value="failedCount" class="fail-badge" type="danger" />
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
@@ -24,17 +28,39 @@
 </template>
 
 <script setup>
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import api from '../api/client'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const failedCount = ref(0)
+let timer = null
+
+async function refreshFailedCount() {
+  try {
+    const { data } = await api.get('/netting-runs')
+    failedCount.value = data.filter((r) => r.status === 'FAILED').length
+  } catch {
+    // unauthenticated / transient errors: leave badge unchanged
+  }
+}
 
 function onLogout() {
   auth.logout()
   router.push({ name: 'login' })
 }
+
+onMounted(() => {
+  refreshFailedCount()
+  timer = setInterval(refreshFailedCount, 10000)
+})
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 </script>
 
 <style scoped>
@@ -61,6 +87,9 @@ function onLogout() {
 .aside :deep(.el-menu-item.is-active) {
   background: #243b53;
   color: #fff;
+}
+.fail-badge {
+  margin-left: 8px;
 }
 .header {
   display: flex;

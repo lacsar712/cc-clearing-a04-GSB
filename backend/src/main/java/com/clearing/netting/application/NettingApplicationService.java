@@ -107,14 +107,36 @@ public class NettingApplicationService {
             run = runRepository.save(run);
             return new NettingRunResult(run, positions, opens);
         } catch (DomainException ex) {
-            run.markFailed(ex.getMessage());
+            run.markFailed(ex.getCode(), abbreviate(ex.getMessage()));
             statusService.saveInNewTx(run);
             throw ex;
         } catch (RuntimeException ex) {
-            run.markFailed(ex.getMessage() == null ? "unexpected error" : ex.getMessage());
+            String reason = ex.getMessage() == null ? "unexpected error" : ex.getMessage();
+            run.markFailed("NETTING_FAILED", abbreviate(reason));
             statusService.saveInNewTx(run);
-            throw new DomainException("NETTING_FAILED", ex.getMessage());
+            throw new DomainException("NETTING_FAILED", reason);
         }
+    }
+
+    /**
+     * Retry a FAILED run: the original run is kept as an audit record and a brand-new run
+     * is executed with the same settleDate/currency. Obligations were never marked NETTED
+     * on the failed attempt, so they are still OPEN and get picked up again.
+     */
+    @Transactional
+    public NettingRunResult retry(String failedRunId) {
+        NettingRun failed = getRun(failedRunId);
+        if (failed.getStatus() != NettingRunStatus.FAILED) {
+            throw new DomainException("INVALID_STATE", "only FAILED runs can be retried");
+        }
+        return execute(failed.getSettleDate(), failed.getCurrency());
+    }
+
+    private static String abbreviate(String reason) {
+        if (reason == null) {
+            return null;
+        }
+        return reason.length() <= 500 ? reason : reason.substring(0, 500) + "...";
     }
 
     @Transactional

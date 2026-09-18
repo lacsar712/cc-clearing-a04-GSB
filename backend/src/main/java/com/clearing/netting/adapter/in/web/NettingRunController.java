@@ -75,6 +75,16 @@ public class NettingRunController {
         return RunResponse.from(nettingService.settle(id));
     }
 
+    @PostMapping("/{id}/retry")
+    public ExecuteResponse retry(@PathVariable("id") String id) {
+        AuthContext.requireOperator();
+        NettingApplicationService.NettingRunResult result = nettingService.retry(id);
+        return new ExecuteResponse(
+                RunResponse.from(result.run()),
+                result.positions().stream().map(PositionResponse::from).collect(Collectors.toList()),
+                sumNet(result.positions()));
+    }
+
     private BigDecimal sumNet(List<NetPosition> positions) {
         return positions.stream()
                 .map(NetPosition::getNetAmount)
@@ -90,6 +100,7 @@ public class NettingRunController {
             String currency,
             NettingRunStatus status,
             Instant createdAt,
+            String failureCode,
             String failureReason) {
         static RunResponse from(NettingRun r) {
             return new RunResponse(
@@ -98,6 +109,7 @@ public class NettingRunController {
                     r.getCurrency(),
                     r.getStatus(),
                     r.getCreatedAt(),
+                    r.getFailureCode(),
                     r.getFailureReason());
         }
     }

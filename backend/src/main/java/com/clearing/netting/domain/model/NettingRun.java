@@ -11,6 +11,7 @@ public class NettingRun {
     private final String currency;
     private NettingRunStatus status;
     private final Instant createdAt;
+    private String failureCode;
     private String failureReason;
 
     public NettingRun(
@@ -19,12 +20,14 @@ public class NettingRun {
             String currency,
             NettingRunStatus status,
             Instant createdAt,
+            String failureCode,
             String failureReason) {
         this.runId = Objects.requireNonNull(runId);
         this.settleDate = Objects.requireNonNull(settleDate);
         this.currency = Objects.requireNonNull(currency).toUpperCase();
         this.status = Objects.requireNonNull(status);
         this.createdAt = Objects.requireNonNull(createdAt);
+        this.failureCode = failureCode;
         this.failureReason = failureReason;
     }
 
@@ -35,6 +38,7 @@ public class NettingRun {
                 currency,
                 NettingRunStatus.CREATED,
                 Instant.now(),
+                null,
                 null);
     }
 
@@ -44,11 +48,13 @@ public class NettingRun {
 
     public void markCompleted() {
         this.status = NettingRunStatus.COMPLETED;
+        this.failureCode = null;
         this.failureReason = null;
     }
 
-    public void markFailed(String reason) {
+    public void markFailed(String code, String reason) {
         this.status = NettingRunStatus.FAILED;
+        this.failureCode = code;
         this.failureReason = reason;
     }
 
@@ -70,6 +76,10 @@ public class NettingRun {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public String getFailureCode() {
+        return failureCode;
     }
 
     public String getFailureReason() {

@@ -32,6 +32,9 @@ public class NettingRunJpaEntity {
     @Column(nullable = false)
     private Instant createdAt;
 
+    @Column(length = 64)
+    private String failureCode;
+
     @Column(length = 512)
     private String failureReason;
 
@@ -73,6 +76,14 @@ public class NettingRunJpaEntity {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getFailureCode() {
+        return failureCode;
+    }
+
+    public void setFailureCode(String failureCode) {
+        this.failureCode = failureCode;
     }
 
     public String getFailureReason() {
